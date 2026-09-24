@@ -52,9 +52,10 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
 - [x] Training script (`scripts/train.py`): Unsloth QLoRA on Qwen3-4B-Instruct-2507, loss on assistant
   tokens only, time-limited with resume
 - [x] Kaggle notebooks for training and evaluation (`notebooks/`)
-- [ ] Smoke test on Kaggle (20 steps), check the full-run time estimate
-- [ ] Full training run
-- Hyperparameters: r=16, alpha=32, lr=2e-4, 2 epochs (`configs/train.yaml`); W&B logging optional
+- [x] Smoke test on Kaggle (20 steps): works; ~75 s/step on a T4, so 2 epochs would take ~31 h
+- [ ] Full training run: 1 epoch, ~15 h over two Kaggle sessions (resume once)
+- Hyperparameters: r=16, alpha=32, lr=2e-4, **1 epoch** (`configs/train.yaml`); the reference used 2,
+  cut to fit the free T4 quota. W&B logging optional
 - Trains on positives plus an equal number of sampled "not present" examples
 - [ ] Select the checkpoint on the val split, never the test split
 

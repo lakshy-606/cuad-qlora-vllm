@@ -121,7 +121,7 @@ def main() -> None:
         max_steps=args.max_steps or -1,
         learning_rate=tr["learning_rate"],
         lr_scheduler_type=tr["lr_scheduler"],
-        warmup_ratio=tr["warmup_ratio"],
+        warmup_steps=tr["warmup_steps"],
         weight_decay=tr["weight_decay"],
         optim="adamw_8bit",
         per_device_train_batch_size=tr["per_device_batch_size"],

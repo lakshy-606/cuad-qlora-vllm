@@ -1,4 +1,5 @@
-# QLoRA fine-tune (scripts/train.py). Hyperparameters follow a published Qwen3-4B CUAD fine-tune.
+# QLoRA fine-tune (scripts/train.py). LoRA and optimizer settings follow a published Qwen3-4B CUAD
+# fine-tune; epochs are cut from 2 to 1 to fit Kaggle's free T4s.
 run_name: qwen3_4b_cuad_lora
 base_model: Qwen/Qwen3-4B-Instruct-2507
 processed_dir: data/processed
@@ -16,13 +17,15 @@ lora:
   target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
 
 training:
-  epochs: 2
+  # A T4 smoke test measured ~75 s per step (16 examples, ~530 tokens/s): one epoch is ~651 steps,
+  # ~15 h, i.e. two 12-hour Kaggle sessions. Two epochs (~31 h) would exceed the weekly GPU quota.
+  epochs: 1
   learning_rate: 2.0e-4
   lr_scheduler: linear
-  warmup_ratio: 0.03
+  warmup_steps: 20  # ~3% of one epoch
   weight_decay: 0.01
   per_device_batch_size: 2
-  gradient_accumulation_steps: 8  # effective batch 16, ~650 steps per epoch
+  gradient_accumulation_steps: 8  # effective batch 16, ~651 steps per epoch
   logging_steps: 10
   # Checkpoints double as candidates for val-set selection; eval loss on a val sample is logged at each.
   save_steps: 200
