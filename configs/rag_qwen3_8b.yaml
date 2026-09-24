@@ -1,0 +1,25 @@
+# Baseline B: hybrid BM25 + dense retrieval, then one Qwen3-8B request per (contract, category).
+# Needs the rag dependency group: uv sync --group rag
+run_name: rag_qwen3_8b
+split: test
+mode: rag
+
+rag:
+  passage_chars: 2000
+  passage_overlap: 300
+  # Share of test gold spans fully inside the retrieved passages, by top_k (prompt tokens on test):
+  #   4: 49.7% (7.4M)   8: 66.5% (13.2M)   12: 76.6% (18.1M)   16: 83.0% (22.0M)
+  # Retrieval recall caps the baseline's coverage recall, so use 16: still 40% of full-context cost.
+  top_k: 16
+  embed_model: BAAI/bge-small-en-v1.5
+  query_prefix: "Represent this sentence for searching relevant passages: "
+  embed_device: cpu
+
+model:
+  model: Qwen/Qwen3-8B
+  base_url: http://localhost:8000/v1
+  max_tokens: 1024
+  concurrency: 64
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false

@@ -1,0 +1,18 @@
+# The fine-tuned model: Qwen3-4B-Instruct base + LoRA adapter, served by vLLM, e.g.
+#   scripts/start_vllm.sh Qwen/Qwen3-4B-Instruct-2507 --enable-lora --max-lora-rank 16 \
+#       --lora-modules cuad-lora=outputs/qwen3_4b_cuad_lora/adapter
+# Pick the checkpoint on val (--split val --model <adapter name>), then score only that one on test.
+# Same chunks and prompt as configs/zeroshot_qwen3_4b.yaml, so the two runs differ only by the adapter.
+run_name: finetuned_qwen3_4b
+split: test
+mode: full
+
+full:
+  chunk_chars: 12000
+  overlap_chars: 1500
+
+model:
+  model: cuad-lora
+  base_url: http://localhost:8000/v1
+  max_tokens: 1024
+  concurrency: 64

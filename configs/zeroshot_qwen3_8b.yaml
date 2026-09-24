@@ -1,0 +1,19 @@
+# Baseline A: zero-shot Qwen3-8B on every (chunk, category) pair, served by vLLM on the GPU box:
+#   vllm serve Qwen/Qwen3-8B --max-model-len 12288 --enable-prefix-caching
+run_name: zeroshot_qwen3_8b
+split: test
+mode: full
+
+full:
+  chunk_chars: 12000  # same windows as the fine-tuning data
+  overlap_chars: 1500
+
+model:
+  model: Qwen/Qwen3-8B
+  base_url: http://localhost:8000/v1
+  max_tokens: 1024
+  concurrency: 64
+  # Qwen3-8B is a hybrid thinking model; the answer format has no room for reasoning.
+  extra_body:
+    chat_template_kwargs:
+      enable_thinking: false

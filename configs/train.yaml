@@ -1,0 +1,32 @@
+# QLoRA fine-tune (scripts/train.py). Hyperparameters follow a published Qwen3-4B CUAD fine-tune.
+run_name: qwen3_4b_cuad_lora
+base_model: Qwen/Qwen3-4B-Instruct-2507
+processed_dir: data/processed
+output_dir: outputs
+seed: 42
+
+# 99.6% of training examples fit in 4096 tokens (p99 is 3,364); the few longer ones are dropped,
+# since truncating would cut off the answer.
+max_seq_length: 4096
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.0
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+
+training:
+  epochs: 2
+  learning_rate: 2.0e-4
+  lr_scheduler: linear
+  warmup_ratio: 0.03
+  weight_decay: 0.01
+  per_device_batch_size: 2
+  gradient_accumulation_steps: 8  # effective batch 16, ~650 steps per epoch
+  logging_steps: 10
+  # Checkpoints double as candidates for val-set selection; eval loss on a val sample is logged at each.
+  save_steps: 200
+  save_total_limit: 4
+  eval_examples: 128
+  # Stop and save before Kaggle's 12-hour session limit; rerun with --resume to continue.
+  max_hours: 11.0

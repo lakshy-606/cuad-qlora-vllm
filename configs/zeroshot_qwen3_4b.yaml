@@ -1,0 +1,17 @@
+# Zero-shot Qwen3-4B-Instruct: the exact model we fine-tune, before training. Same chunks and prompt
+# as the fine-tuned eval, so the difference between the two runs is the effect of fine-tuning.
+# Serve with vLLM on the GPU box:
+#   vllm serve Qwen/Qwen3-4B-Instruct-2507 --max-model-len 12288 --enable-prefix-caching
+run_name: zeroshot_qwen3_4b
+split: test
+mode: full
+
+full:
+  chunk_chars: 12000  # same windows as the fine-tuning data
+  overlap_chars: 1500
+
+model:
+  model: Qwen/Qwen3-4B-Instruct-2507
+  base_url: http://localhost:8000/v1
+  max_tokens: 1024
+  concurrency: 64

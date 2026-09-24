@@ -1,0 +1,17 @@
+# Data preparation config (scripts/prepare_data.py)
+
+raw_dir: data/raw
+processed_dir: data/processed
+
+# The official CUAD test split (102 contracts, 4,182 contract x category pairs) is the eval set,
+# matching ContractEval. Validation contracts are carved out of the official train split.
+val_contracts: 40
+seed: 42
+
+# Chunking. ~4 chars/token for English legal text, so 12k chars is about 3k tokens of contract.
+chunk_chars: 12000
+overlap_chars: 1500
+
+# Chunk-level negatives vastly outnumber positives. Keep every positive and sample this many
+# negatives per positive. Tune on the val set: higher means fewer hallucinated quotes, lower recall.
+negatives_per_positive: 1.0
