@@ -9,7 +9,7 @@ Results are reported with the same metrics as
 (GPT-4.1: 0.641 F1, Claude Sonnet 4: 0.523 F1 on the CUAD test set).
 
 > **Status:** Phase 1. The data pipeline, metrics, inference runner and hybrid retrieval are done;
-> baseline runs need a GPU (vLLM) or an OpenAI key. See [docs/plan.md](docs/plan.md) for the roadmap.
+> baseline runs need a GPU (vLLM). See [docs/plan.md](docs/plan.md) for the roadmap.
 
 ## Task
 
@@ -81,8 +81,6 @@ the notebooks can clone it.
    `REPO_URL`, run a 20-step smoke test, then commit a full run. Instructions are in the notebook.
 2. **Evaluate:** upload [notebooks/kaggle_eval.ipynb](notebooks/kaggle_eval.ipynb), attach the training
    output, and run the tasks: baselines, checkpoint selection on val, then the final test eval.
-
-The GPT-4o-mini baseline needs no GPU: run it locally with `OPENAI_API_KEY` set.
 
 ## Layout
 

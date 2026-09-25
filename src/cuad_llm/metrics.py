@@ -144,8 +144,8 @@ def evaluate(
         for _ in range(n_bootstrap):
             idx = rng.integers(0, len(cids), len(cids))
             s = _summarise(per_contract[idx], keys)
-            for k in samples:
-                samples[k].append(s[k])
+            for k, vals in samples.items():
+                vals.append(s[k])
         for k, vals in samples.items():
             lo, hi = np.percentile(vals, [2.5, 97.5])
             results[f"{k}_ci_low"] = float(lo)

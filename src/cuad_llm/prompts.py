@@ -15,7 +15,7 @@ SYSTEM_PROMPT = (
     "array of strings and nothing else. If the excerpt has no relevant passage, answer []."
 )
 
-_THINK_RE = re.compile(r"<think>.*?</think>", re.S)
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 _FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$")
 
 

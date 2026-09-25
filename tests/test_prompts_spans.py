@@ -5,8 +5,8 @@ from cuad_llm.spans import locate, merge_predictions
 def test_parse_answer_variants():
     assert parse_answer('["a", "b"]') == ["a", "b"]
     assert parse_answer("[]") == []
-    assert parse_answer("```json\n[\"x\"]\n```") == ["x"]
-    assert parse_answer("<think>hmm</think>\n[\"x\"]") == ["x"]
+    assert parse_answer('```json\n["x"]\n```') == ["x"]
+    assert parse_answer('<think>hmm</think>\n["x"]') == ["x"]
     assert parse_answer("No related clause.") == []
     assert parse_answer('Here you go: ["x"]') == ["x"]
     assert parse_answer("the clause is about payment") is None

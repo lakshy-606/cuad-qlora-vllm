@@ -23,6 +23,7 @@ import argparse
 import dataclasses
 import inspect
 import json
+import math
 import os
 import random
 import time
@@ -47,6 +48,11 @@ class StopAfter(TrainerCallback):
 
     def __init__(self, hours: float):
         self.deadline = time.time() + hours * 3600
+        self.start_step = 0
+
+    def on_train_begin(self, args, state, control, **kwargs):
+        # After a resume, the trainer has already restored the step count here.
+        self.start_step = state.global_step
 
     def on_step_end(self, args, state, control, **kwargs):
         if time.time() > self.deadline:
@@ -146,7 +152,7 @@ def main() -> None:
         args=sft_config,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        callbacks=[StopAfter(tr["max_hours"])],
+        callbacks=[stopper := StopAfter(tr["max_hours"])],
         **{tokenizer_key: tokenizer},
     )
     trainer = train_on_responses_only(
@@ -154,9 +160,14 @@ def main() -> None:
     )
 
     t0 = time.time()
-    result = trainer.train(resume_from_checkpoint=args.resume)
+    trainer.train(resume_from_checkpoint=args.resume)
     hours = (time.time() - t0) / 3600
-    samples_per_s = result.metrics.get("train_samples_per_second", 0.0)
+    # Measured from steps actually run this session. The trainer's own train_samples_per_second
+    # assumes all max_steps ran, so it is inflated whenever a session stops early.
+    steps_run = trainer.state.global_step - stopper.start_step
+    sec_per_step = hours * 3600 / steps_run if steps_run else None
+    batch = tr["per_device_batch_size"] * tr["gradient_accumulation_steps"]
+    full_run_steps = math.ceil(len(train_ds) / batch) * tr["epochs"]
 
     model.save_pretrained(out / "adapter")
     tokenizer.save_pretrained(out / "adapter")
@@ -167,10 +178,11 @@ def main() -> None:
         "finished": state.global_step >= state.max_steps,
         "hours_this_session": round(hours, 2),
         "train_examples": len(train_ds),
-        "train_samples_per_second": samples_per_s,
-        # From this session's speed; a smoke test uses it to size the full run against time limits.
-        "est_hours_full_run": round(len(train_ds) * tr["epochs"] / samples_per_s / 3600, 1)
-        if samples_per_s
+        "steps_this_session": steps_run,
+        "sec_per_step": round(sec_per_step, 1) if sec_per_step else None,
+        # A smoke test uses this to size the full run against session and quota limits.
+        "est_hours_full_run": round(full_run_steps * sec_per_step / 3600, 1)
+        if sec_per_step
         else None,
         "eval_losses": [
             {"step": h["step"], "eval_loss": h["eval_loss"]}

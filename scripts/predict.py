@@ -10,7 +10,7 @@ Outputs (in outputs/<run_name>/):
   run_stats.json     request counts, token usage, parse failures, retrieval recall (rag)
 
 Usage:
-  uv run python scripts/predict.py --config configs/zeroshot_gpt4omini.yaml [--limit 3] [--dry-run]
+  uv run python scripts/predict.py --config configs/zeroshot_qwen3_4b.yaml [--limit 3] [--dry-run]
   uv run python scripts/predict.py --config configs/finetuned_qwen3_4b.yaml \
       --split val --model checkpoint-400 --run-name ft_val_checkpoint-400
 """
@@ -24,7 +24,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import yaml
-from dotenv import load_dotenv
 
 from cuad_llm.chunking import chunk_text
 from cuad_llm.data import Contract, load_contracts, write_jsonl
@@ -74,7 +73,6 @@ def rag_requests(
 
 
 def main() -> None:
-    load_dotenv()  # API keys from a git-ignored .env file, e.g. OPENAI_API_KEY
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--limit", type=int, help="only the first N contracts (smoke test)")

@@ -7,9 +7,9 @@ import random
 import re
 import urllib.request
 import zipfile
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
 
 CUAD_ZIP_URL = "https://github.com/The-Atticus-Project/cuad/raw/main/data.zip"
 TRAIN_FILE = "train_separate_questions.json"
@@ -18,7 +18,7 @@ TEST_FILE = "test.json"
 _QUESTION_RE = re.compile(
     r'related to "(?P<category>.+?)" that should be reviewed by a lawyer\.'
     r"(?: Details: (?P<description>.*))?$",
-    re.S,
+    re.DOTALL,
 )
 
 

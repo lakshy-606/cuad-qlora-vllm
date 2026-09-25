@@ -10,7 +10,7 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
 | Component | Pick | Why |
 | --- | --- | --- |
 | Base model | `Qwen/Qwen3-4B-Instruct-2507` | Small models fine-tune well on extraction tasks; fast iteration |
-| Zero-shot baselines | Qwen3-4B-Instruct-2507 (same model, untuned), `Qwen/Qwen3-8B` (thinking off), GPT-4o-mini | Isolate the effect of fine-tuning; larger open and API reference points |
+| Zero-shot baselines | Qwen3-4B-Instruct-2507 (same model, untuned), `Qwen/Qwen3-8B` (thinking off) | Isolate the effect of fine-tuning; a larger open model for reference |
 | Fine-tuning | Unsloth QLoRA | Fastest, most VRAM-efficient on one GPU |
 | Eval inference | vLLM with prefix caching | A test-set eval is ~20k generations; batching plus reuse of each chunk's KV cache across the 41 category prompts keeps an eval run short |
 | Tracking | Weights & Biases (free tier) | |
@@ -29,6 +29,8 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
 - **Free Kaggle T4s instead of a rented A100.** T4 has no bf16, so training and inference run in fp16;
   training stops and checkpoints before the 12-hour session limit and resumes in the next session.
   Qwen3-8B is split across both T4s with tensor parallelism.
+- **No paid API baseline.** A full GPT run on the test split (~57M input tokens) would cost more than
+  it adds; the published GPT-4.1 and Claude Sonnet 4 ContractEval numbers are the commercial reference.
 - **No hyperparameter ablations.** One fine-tune with the reference hyperparameters; the val split is
   used only to pick the best checkpoint.
 - **Added a zero-shot Qwen3-4B-Instruct baseline**: the exact model before fine-tuning, so the gain is
@@ -45,7 +47,7 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
   (`scripts/predict.py`) and scorer (`scripts/evaluate.py`)
 - [x] Baseline B retrieval: hybrid BM25 + FAISS dense retrieval with reciprocal rank fusion
 - [ ] Run zero-shot Qwen3-4B-Instruct (`configs/zeroshot_qwen3_4b.yaml`), the pre-fine-tune reference
-- [ ] Run baseline A: zero-shot Qwen3-8B (`configs/zeroshot_qwen3_8b.yaml`), optionally GPT-4o-mini
+- [ ] Run baseline A: zero-shot Qwen3-8B (`configs/zeroshot_qwen3_8b.yaml`)
 - [ ] Run baseline B: RAG + Qwen3-8B (`configs/rag_qwen3_8b.yaml`)
 
 ### Phase 2: fine-tune (week 2)
@@ -53,11 +55,12 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
   tokens only, time-limited with resume
 - [x] Kaggle notebooks for training and evaluation (`notebooks/`)
 - [x] Smoke test on Kaggle (20 steps): works; ~75 s/step on a T4, so 2 epochs would take ~31 h
-- [ ] Full training run: 1 epoch, ~15 h over two Kaggle sessions (resume once)
+- [x] Full training run: 1 epoch, 651 steps over two Kaggle sessions (11.0 h to step 519, then ~2.8 h);
+  eval loss 0.410 → 0.396 → 0.390 → 0.389 at steps 200 / 400 / 600 / 651
 - Hyperparameters: r=16, alpha=32, lr=2e-4, **1 epoch** (`configs/train.yaml`); the reference used 2,
   cut to fit the free T4 quota. W&B logging optional
 - Trains on positives plus an equal number of sampled "not present" examples
-- [ ] Select the checkpoint on the val split, never the test split
+- [x] Checkpoint: the final adapter (lowest val loss); the test split is used once, for the final score
 
 ### Phase 3: evaluate and write up (week 3)
 - [ ] Score the final fine-tune on test against every baseline and the published ContractEval numbers

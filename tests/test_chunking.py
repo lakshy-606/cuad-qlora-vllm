@@ -1,3 +1,5 @@
+from itertools import pairwise
+
 from cuad_llm.chunking import chunk_text, spans_in_chunk
 from cuad_llm.data import Span
 
@@ -8,7 +10,7 @@ def test_chunks_cover_text_with_overlap():
     chunks = chunk_text(TEXT, max_chars=1000, overlap_chars=150)
     assert chunks[0].start == 0
     assert chunks[-1].end == len(TEXT)
-    for prev, nxt in zip(chunks, chunks[1:]):
+    for prev, nxt in pairwise(chunks):
         assert prev.end - nxt.start >= 150 // 2, "consecutive chunks must overlap"
         assert nxt.start > prev.start, "chunking must make progress"
     for c in chunks:
