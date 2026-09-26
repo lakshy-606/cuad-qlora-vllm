@@ -1,6 +1,8 @@
-# Baseline B: hybrid BM25 + dense retrieval, then one Qwen3-8B request per (contract, category).
+# Baseline B (4B): hybrid BM25 + dense retrieval, then one Qwen3-4B-Instruct request per
+# (contract, category). Same model as the zero-shot and fine-tuned runs, so the three differ only by
+# method; about half the compute of the 8B variant, which is too slow on free T4s.
 # Needs the rag dependency group: uv sync --group rag
-run_name: rag_qwen3_8b
+run_name: rag_qwen3_4b
 split: test
 mode: rag
 
@@ -16,13 +18,10 @@ rag:
   embed_device: cpu
 
 model:
-  model: Qwen/Qwen3-8B
+  model: Qwen/Qwen3-4B-Instruct-2507
   base_url: http://localhost:8000/v1
   max_tokens: 1024
-  # Every RAG prompt is unique (~5.3k tokens, no shared prefix). On 2x T4 this model managed ~0.2
-  # requests/s; at 64 in flight, requests waited past the 600 s timeout and were re-sent.
+  # Every RAG prompt is unique (~5.3k tokens, no shared prefix), so requests queue on the GPU; keep
+  # fewer in flight with a long timeout (the 8B variant timed out at 64 in flight and 600 s).
   concurrency: 32
   timeout_s: 1800
-  extra_body:
-    chat_template_kwargs:
-      enable_thinking: false

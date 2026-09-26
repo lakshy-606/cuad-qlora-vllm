@@ -25,6 +25,9 @@ class ModelConfig:
     temperature: float = 0.0
     max_tokens: int = 1024
     concurrency: int = 32
+    # Per-request timeout. Long unique prompts (RAG) queue behind each other on a slow GPU, so
+    # their configs raise this rather than letting requests time out and be re-sent.
+    timeout_s: float = 600
     # Passed through to the server, e.g. {"chat_template_kwargs": {"enable_thinking": false}} for
     # Qwen3 hybrid-thinking models on vLLM.
     extra_body: dict = field(default_factory=dict)
@@ -95,7 +98,9 @@ async def _run(requests: list[list[dict]], cfg: ModelConfig, cache_path: Path) -
     if todo:
         # A local vLLM server accepts any key; the OpenAI client just needs one set.
         api_key = os.environ.get(cfg.api_key_env) or ("EMPTY" if cfg.base_url else None)
-        client = AsyncOpenAI(base_url=cfg.base_url, api_key=api_key, max_retries=6, timeout=600)
+        client = AsyncOpenAI(
+            base_url=cfg.base_url, api_key=api_key, max_retries=6, timeout=cfg.timeout_s
+        )
         sem = asyncio.Semaphore(cfg.concurrency)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         t0 = time.perf_counter()
