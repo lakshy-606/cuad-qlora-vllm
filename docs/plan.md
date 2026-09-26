@@ -62,6 +62,16 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
 - Trains on positives plus an equal number of sampled "not present" examples
 - [x] Checkpoint: the final adapter (lowest val loss); the test split is used once, for the final score
 
+### Phase 2b: retrain after a data bug
+- [x] First fine-tune scored 0.585 coverage F1 vs 0.642 zero-shot, despite better detection, laziness,
+  verbatim rate and span overlap. Error analysis (`scripts/analyze_errors.py`): 80% of failed clauses
+  missed one of several gold spans, and the Parties category collapsed (1 of 102 fully covered).
+- [x] Root cause: CUAD's train file repeats a category once per answer; the loader overwrote each
+  repeat, so every train/val target kept only its last span (test data was unaffected). Fixed in
+  `data.py`, verified against `CUADv1.json` (all 16,728 train pairs match), regression test added.
+- [ ] Retrain on the fixed data, same hyperparameters: 12,413 examples, 776 steps, ~16.4 h on a T4
+- [ ] Re-score the fine-tuned model on test
+
 ### Phase 3: evaluate and write up (week 3)
 - [ ] Score the final fine-tune on test against every baseline and the published ContractEval numbers
 - [ ] Reference bar: a published CUAD fine-tune reached 0.900 detection F1 vs 0.816 for zero-shot Qwen3-14B

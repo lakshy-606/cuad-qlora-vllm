@@ -147,12 +147,13 @@ def main() -> None:
     )
     trainer_params = inspect.signature(SFTTrainer.__init__).parameters
     tokenizer_key = "processing_class" if "processing_class" in trainer_params else "tokenizer"
+    stopper = StopAfter(tr["max_hours"])
     trainer = SFTTrainer(
         model=model,
         args=sft_config,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        callbacks=[stopper := StopAfter(tr["max_hours"])],
+        callbacks=[stopper],
         **{tokenizer_key: tokenizer},
     )
     trainer = train_on_responses_only(
@@ -162,15 +163,16 @@ def main() -> None:
     t0 = time.time()
     trainer.train(resume_from_checkpoint=args.resume)
     hours = (time.time() - t0) / 3600
+    # Save the adapter before anything else, so a bug in the summary below can't lose the run.
+    model.save_pretrained(out / "adapter")
+    tokenizer.save_pretrained(out / "adapter")
+
     # Measured from steps actually run this session. The trainer's own train_samples_per_second
     # assumes all max_steps ran, so it is inflated whenever a session stops early.
     steps_run = trainer.state.global_step - stopper.start_step
     sec_per_step = hours * 3600 / steps_run if steps_run else None
     batch = tr["per_device_batch_size"] * tr["gradient_accumulation_steps"]
     full_run_steps = math.ceil(len(train_ds) / batch) * tr["epochs"]
-
-    model.save_pretrained(out / "adapter")
-    tokenizer.save_pretrained(out / "adapter")
     state = trainer.state
     summary = {
         "global_step": state.global_step,

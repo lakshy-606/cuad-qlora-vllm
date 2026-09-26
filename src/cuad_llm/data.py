@@ -94,22 +94,22 @@ def load_squad_file(path: Path) -> tuple[list[Contract], dict[str, str]]:
         # CUAD stores each contract as a single paragraph.
         (para,) = doc["paragraphs"]
         text = para["context"]
-        labels: dict[str, list[Span]] = {}
+        # The train file ("separate questions") repeats a category once per answer, one answer each;
+        # the test file has one question per category with all answers. Accumulate across both.
+        spans_by_cat: dict[str, dict[tuple[int, str], Span]] = {}
         for qa in para["qas"]:
             category, description = parse_question(qa["question"])
             categories.setdefault(category, description)
-            seen: set[tuple[int, str]] = set()
-            spans = []
+            spans = spans_by_cat.setdefault(category, {})
             for ans in qa["answers"]:
-                key = (ans["answer_start"], ans["text"])
-                if key in seen:
-                    continue
-                seen.add(key)
                 span = Span(ans["text"], ans["answer_start"])
                 if text[span.start : span.end] != span.text:
                     raise ValueError(f"Offset mismatch in {qa['id']}")
-                spans.append(span)
-            labels[category] = sorted(spans, key=lambda s: s.start)
+                spans[(span.start, span.text)] = span
+        labels = {
+            cat: sorted(spans.values(), key=lambda s: s.start)
+            for cat, spans in spans_by_cat.items()
+        }
         contracts.append(Contract(doc["title"], text, labels))
     return contracts, categories
 
