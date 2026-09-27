@@ -16,3 +16,5 @@ model:
   base_url: http://localhost:8000/v1
   max_tokens: 1024
   concurrency: 64
+  # With LoRA enabled on 2x T4 a request once waited past 600 s and crashed the run.
+  timeout_s: 1800

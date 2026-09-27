@@ -14,7 +14,10 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from openai import AsyncOpenAI
+from openai import APIError, AsyncOpenAI
+
+# Passes over still-failing requests before a run gives up.
+MAX_PASSES = 3
 
 
 @dataclass
@@ -99,29 +102,55 @@ async def _run(requests: list[list[dict]], cfg: ModelConfig, cache_path: Path) -
         # A local vLLM server accepts any key; the OpenAI client just needs one set.
         api_key = os.environ.get(cfg.api_key_env) or ("EMPTY" if cfg.base_url else None)
         client = AsyncOpenAI(
-            base_url=cfg.base_url, api_key=api_key, max_retries=6, timeout=cfg.timeout_s
+            base_url=cfg.base_url, api_key=api_key, max_retries=2, timeout=cfg.timeout_s
         )
         sem = asyncio.Semaphore(cfg.concurrency)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        t0 = time.perf_counter()
         with cache_path.open("a") as f:
-            # Tasks are created in request order, and requests for one chunk are adjacent, so
-            # in-flight requests tend to share a prefix the server already has cached.
-            async def indexed(i: int) -> tuple[int, Completion]:
-                return i, await _complete(client, cfg, requests[i], sem)
-
-            tasks = [asyncio.ensure_future(indexed(i)) for i in todo]
-            for n, fut in enumerate(asyncio.as_completed(tasks), 1):
-                i, done = await fut
-                cache[keys[i]] = done
-                f.write(json.dumps({"key": keys[i], **asdict(done)}) + "\n")
-                if n % 500 == 0 or n == len(todo):
-                    f.flush()
-                    rate = n / (time.perf_counter() - t0)
-                    print(f"  {n}/{len(todo)} done ({rate:.1f} req/s)")
+            # A single failed request must not throw away a multi-hour run: failures are collected
+            # and retried in later passes, and every completed response is already on disk.
+            for attempt in range(1, MAX_PASSES + 1):
+                todo, error = await _pass(todo, requests, keys, cache, client, cfg, sem, f)
+                if not todo:
+                    break
+                print(f"  pass {attempt}: {len(todo)} requests failed ({error!r}); retrying")
         await client.close()
+        if todo:
+            raise RuntimeError(
+                f"{len(todo)} requests still failing after {MAX_PASSES} passes; completed "
+                f"responses are cached in {cache_path}, so a rerun only retries these"
+            )
 
     return [cache[k] for k in keys]
+
+
+async def _pass(todo, requests, keys, cache, client, cfg, sem, f):
+    """Send every request in `todo` once; return the indices that failed and the last error."""
+    t0 = time.perf_counter()
+
+    # Tasks are created in request order, and requests for one chunk are adjacent, so
+    # in-flight requests tend to share a prefix the server already has cached.
+    async def indexed(i: int):
+        try:
+            return i, await _complete(client, cfg, requests[i], sem), None
+        except (APIError, TimeoutError, OSError) as e:  # timeouts, dropped connections, 5xx
+            return i, None, e
+
+    failed, error = [], None
+    tasks = [asyncio.ensure_future(indexed(i)) for i in todo]
+    for n, fut in enumerate(asyncio.as_completed(tasks), 1):
+        i, done, exc = await fut
+        if exc is not None:
+            failed.append(i)
+            error = exc
+        else:
+            cache[keys[i]] = done
+            f.write(json.dumps({"key": keys[i], **asdict(done)}) + "\n")
+            f.flush()
+        if n % 500 == 0 or n == len(todo):
+            rate = n / (time.perf_counter() - t0)
+            print(f"  {n}/{len(todo)} done ({rate:.1f} req/s, {len(failed)} failed)")
+    return sorted(failed), error
 
 
 def run_chat(requests: list[list[dict]], cfg: ModelConfig, cache_path: Path) -> list[Completion]:
