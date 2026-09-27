@@ -56,3 +56,19 @@ def test_evaluate_counts_match_contracteval_definitions():
 def test_verbatim_is_nan_without_predictions():
     r = evaluate([P("c1", "X", ["Governed by"], [])], CONTRACTS, n_bootstrap=0)
     assert math.isnan(r["verbatim"])
+
+
+def test_paired_bootstrap_detects_a_consistent_improvement():
+    from cuad_llm.metrics import paired_bootstrap
+
+    better, worse = [], []
+    for i in range(30):
+        cid = f"c{i}"
+        gold = ["Governed by New York law"]
+        better.append(P(cid, "Governing Law", gold, gold))
+        # The weaker run misses the clause in every third contract.
+        worse.append(P(cid, "Governing Law", gold, [] if i % 3 == 0 else gold))
+    r = paired_bootstrap(better, worse, n_bootstrap=500)
+    assert r["diff"] > 0 and r["ci_low"] > 0 and r["p_le_zero"] == 0.0
+    same = paired_bootstrap(better, better, n_bootstrap=200)
+    assert same["diff"] == 0.0 and same["p_le_zero"] == 1.0

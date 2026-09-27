@@ -152,3 +152,46 @@ def evaluate(
             results[f"{k}_ci_high"] = float(hi)
 
     return results
+
+
+def paired_bootstrap(
+    a: list[PairPrediction],
+    b: list[PairPrediction],
+    metric: str = "coverage_f1",
+    n_bootstrap: int = 10000,
+    seed: int = 0,
+) -> dict[str, float]:
+    """Difference metric(a) - metric(b) with a paired bootstrap over contracts.
+
+    Both runs are resampled with the same contracts each time, so contract difficulty cancels out;
+    this is the right test for "is model A better than model B on this test set", which two
+    separate confidence intervals are not. `p_le_zero` is the share of resamples where A does not
+    beat B (a one-sided bootstrap p-value).
+    """
+    keys = list(_pair_counts(a[0]).keys())
+
+    def per_contract(preds: list[PairPrediction]) -> dict[str, np.ndarray]:
+        out: dict[str, np.ndarray] = {}
+        for p in preds:
+            row = np.array([_pair_counts(p)[k] for k in keys])
+            out[p.contract_id] = out.get(p.contract_id, 0) + row
+        return out
+
+    pa, pb = per_contract(a), per_contract(b)
+    if set(pa) != set(pb):
+        raise ValueError("runs cover different contracts")
+    cids = sorted(pa)
+    ma, mb = np.array([pa[c] for c in cids]), np.array([pb[c] for c in cids])
+    diff = _summarise(ma, keys)[metric] - _summarise(mb, keys)[metric]
+    rng = np.random.default_rng(seed)
+    samples = np.empty(n_bootstrap)
+    for i in range(n_bootstrap):
+        idx = rng.integers(0, len(cids), len(cids))
+        samples[i] = _summarise(ma[idx], keys)[metric] - _summarise(mb[idx], keys)[metric]
+    lo, hi = np.percentile(samples, [2.5, 97.5])
+    return {
+        "diff": float(diff),
+        "ci_low": float(lo),
+        "ci_high": float(hi),
+        "p_le_zero": float(np.mean(samples <= 0)),
+    }

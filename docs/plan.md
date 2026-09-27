@@ -46,9 +46,10 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
 - [x] Inference runner for any OpenAI-compatible endpoint, with resumable response cache
   (`scripts/predict.py`) and scorer (`scripts/evaluate.py`)
 - [x] Baseline B retrieval: hybrid BM25 + FAISS dense retrieval with reciprocal rank fusion
-- [ ] Run zero-shot Qwen3-4B-Instruct (`configs/zeroshot_qwen3_4b.yaml`), the pre-fine-tune reference
-- [ ] Run baseline A: zero-shot Qwen3-8B (`configs/zeroshot_qwen3_8b.yaml`)
-- [ ] Run baseline B: RAG + Qwen3-8B (`configs/rag_qwen3_8b.yaml`)
+- [x] Zero-shot Qwen3-4B-Instruct (`configs/zeroshot_qwen3_4b.yaml`): coverage F1 0.642
+- [x] Baseline A, zero-shot Qwen3-8B (`configs/zeroshot_qwen3_8b.yaml`): coverage F1 0.512
+- [x] Baseline B, RAG: run with Qwen3-4B (`configs/rag_qwen3_4b.yaml`), coverage F1 0.592. The 8B
+  variant ran at ~0.2 requests/s on 2x T4 and timed out; the 4B one also isolates method from model
 
 ### Phase 2: fine-tune (week 2)
 - [x] Training script (`scripts/train.py`): Unsloth QLoRA on Qwen3-4B-Instruct-2507, loss on assistant
@@ -69,14 +70,18 @@ a week, 12-hour sessions), so $0; 2–3 weeks part-time.
 - [x] Root cause: CUAD's train file repeats a category once per answer; the loader overwrote each
   repeat, so every train/val target kept only its last span (test data was unaffected). Fixed in
   `data.py`, verified against `CUADv1.json` (all 16,728 train pairs match), regression test added.
-- [ ] Retrain on the fixed data, same hyperparameters: 12,413 examples, 776 steps, ~16.4 h on a T4
-- [ ] Re-score the fine-tuned model on test
+- [x] Retrained on the fixed data, same hyperparameters: 12,412 examples, 776 steps, 15.4 h on a T4;
+  val loss 0.343 / 0.337 / 0.331 / 0.332 at steps 200 / 400 / 600 / 776
+- [x] Checkpoint selection on val: step 600 (coverage F1 0.729) beat the final adapter (0.706)
+- [x] Test: coverage F1 0.714 [0.688, 0.738], up from 0.585 before the fix
 
 ### Phase 3: evaluate and write up (week 3)
-- [ ] Score the final fine-tune on test against every baseline and the published ContractEval numbers
-- [ ] Reference bar: a published CUAD fine-tune reached 0.900 detection F1 vs 0.816 for zero-shot Qwen3-14B
-- [ ] Per-category breakdown and error analysis: which clause types gain most, where it still fails
-- [ ] README with final numbers and reproduction steps
+- [x] Scored against every baseline; paired bootstrap (`scripts/compare_runs.py`): +0.073 over
+  zero-shot 4B, +0.123 over RAG, +0.202 over 8B, all p < 0.0001
+- Reference point, not a target we matched: a published CUAD fine-tune reported 0.900 detection F1
+  (vs 0.816 zero-shot Qwen3-14B); ours reached 0.856 under a different setup (windows, 1 epoch, T4)
+- [x] Per-category breakdown: better than zero-shot in 29 of 41 categories, worse in 4
+- [x] README with final numbers, the data-bug story, limitations and reproduction steps
 
 ## References
 
